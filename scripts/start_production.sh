@@ -129,21 +129,10 @@ echo "   GPU: $(nvidia-smi --query-gpu=name --format=csv,noheader | head -1)"
 echo "   Memory: $(free -h | awk '/^Mem:/ {print $2}') total"
 echo "   Disk: $(df -h . | awk 'NR==2 {print $4}') available"
 
-# Start MQTT publisher in background (only if MQTT is enabled)
+# Start MQTT publisher in background (only if basic mode is selected)
 MQTT_PID=""
 if [ "$mode_choice" = "2" ]; then
-    echo "🚀 Starting MQTT publisher..."
-    if [ -f "src/production_mqtt.py" ]; then
-        python3 src/production_mqtt.py &
-        MQTT_PID=$!
-        echo "   MQTT Publisher PID: $MQTT_PID"
-        
-        # Wait for MQTT initialization
-        echo "⏱️  Waiting for MQTT initialization..."
-        sleep 3
-    else
-        echo "⚠️  MQTT publisher script not found, continuing without MQTT"
-    fi
+    echo "🚀 MQTT publisher will start alongside DeepStream GUI..."
 else
     echo "📺 Skipping MQTT publisher (basic mode selected)"
 fi
@@ -170,22 +159,66 @@ echo "   Press Ctrl+C to stop"
 echo ""
 
 # Run DeepStream application with selected config
-if [ -f "src/analytics_stream_counter.py" ]; then
-    echo "🎯 Running DeepStream with Enhanced Analytics Stream Counter..."
-    echo "📊 Features: NVIDIA Analytics integration, per-stream counting, live overlay"
-    python3 src/analytics_stream_counter.py "$CONFIG_TO_USE"
-elif [ -f "src/advanced_live_counter.py" ]; then
-    echo "📊 Running DeepStream with advanced live object counting..."
-    echo "📊 Features: Real-time counting, GUI overlay, persistent storage"
-    python3 src/advanced_live_counter.py "$CONFIG_TO_USE"
-elif [ -f "src/simple_live_counter.py" ]; then
-    echo "📊 Running DeepStream with simple live counting..."
-    python3 src/simple_live_counter.py "$CONFIG_TO_USE"
-elif [ -f "src/production_deepstream.py" ]; then
-    python3 src/production_deepstream.py "$CONFIG_TO_USE"
+if [ "$mode_choice" = "2" ]; then
+    echo "🎯 Running DeepStream GUI with continuous MQTT publisher..."
+    echo "📊 Features: Live video display + 24/7 MQTT broadcasting, system health monitoring"
+    echo "🔄 Both DeepStream GUI and MQTT will run until manually stopped with Ctrl+C"
+    echo ""
+    
+    # Kill the background MQTT process if it's running
+    if [ -n "$MQTT_PID" ]; then
+        kill $MQTT_PID 2>/dev/null || true
+        echo "   Stopped background MQTT publisher"
+    fi
+    
+    # Start MQTT publisher in background
+    echo "🚀 Starting MQTT publisher in background..."
+    python3 src/production_mqtt.py &
+    MQTT_PID=$!
+    echo "   MQTT Publisher PID: $MQTT_PID"
+    
+    # Wait for MQTT initialization
+    echo "⏱️  Waiting for MQTT initialization..."
+    sleep 3
+    
+    # Start DeepStream GUI in foreground
+    echo "🎥 Starting DeepStream GUI application..."
+    if [ -f "src/analytics_stream_counter.py" ]; then
+        echo "🎯 Running DeepStream with Enhanced Analytics Stream Counter..."
+        echo "📊 Features: NVIDIA Analytics integration, per-stream counting, live overlay"
+        python3 src/analytics_stream_counter.py "$CONFIG_TO_USE"
+    elif [ -f "src/advanced_live_counter.py" ]; then
+        echo "📊 Running DeepStream with advanced live object counting..."
+        echo "📊 Features: Real-time counting, GUI overlay, persistent storage"
+        python3 src/advanced_live_counter.py "$CONFIG_TO_USE"
+    elif [ -f "src/simple_live_counter.py" ]; then
+        echo "📊 Running DeepStream with simple live counting..."
+        python3 src/simple_live_counter.py "$CONFIG_TO_USE"
+    elif [ -f "src/production_deepstream.py" ]; then
+        python3 src/production_deepstream.py "$CONFIG_TO_USE"
+    else
+        echo "📱 Running direct DeepStream application..."
+        deepstream-app -c "$CONFIG_TO_USE"
+    fi
 else
-    echo "📱 Running direct DeepStream application..."
-    deepstream-app -c "$CONFIG_TO_USE"
+    # For basic mode, use the analytics counter as before
+    if [ -f "src/analytics_stream_counter.py" ]; then
+        echo "🎯 Running DeepStream with Enhanced Analytics Stream Counter..."
+        echo "📊 Features: NVIDIA Analytics integration, per-stream counting, live overlay"
+        python3 src/analytics_stream_counter.py "$CONFIG_TO_USE"
+    elif [ -f "src/advanced_live_counter.py" ]; then
+        echo "📊 Running DeepStream with advanced live object counting..."
+        echo "📊 Features: Real-time counting, GUI overlay, persistent storage"
+        python3 src/advanced_live_counter.py "$CONFIG_TO_USE"
+    elif [ -f "src/simple_live_counter.py" ]; then
+        echo "📊 Running DeepStream with simple live counting..."
+        python3 src/simple_live_counter.py "$CONFIG_TO_USE"
+    elif [ -f "src/production_deepstream.py" ]; then
+        python3 src/production_deepstream.py "$CONFIG_TO_USE"
+    else
+        echo "📱 Running direct DeepStream application..."
+        deepstream-app -c "$CONFIG_TO_USE"
+    fi
 fi
 
 # This point should not be reached unless DeepStream exits normally

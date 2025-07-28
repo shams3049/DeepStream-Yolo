@@ -38,7 +38,7 @@ gpu-id=0
 nvbuf-memory-type=0
 
 [sink1]
-enable=1
+enable=0
 type=6
 msg-conv-config=configs/components/msg_config.txt
 msg-conv-payload-type=0
