@@ -22,6 +22,8 @@ export LD_LIBRARY_PATH=/opt/nvidia/deepstream/deepstream/lib:$LD_LIBRARY_PATH
 # Set MQTT broker environment variables for external broker
 export MQTT_BROKER_HOST=mqtt-proxy.ad.dicodrink.com
 export MQTT_BROKER_PORT=1883
+export MQTT_BROKER_USER="r_vmays"
+export MQTT_BROKER_PASS="csYr9xH&WTfAvMj2"
 
 # Change to project directory
 cd "$PROJECT_DIR"
@@ -168,7 +170,18 @@ echo "   Press Ctrl+C to stop"
 echo ""
 
 # Run DeepStream application with selected config
-if [ -f "src/production_deepstream.py" ]; then
+if [ -f "src/analytics_stream_counter.py" ]; then
+    echo "🎯 Running DeepStream with Enhanced Analytics Stream Counter..."
+    echo "📊 Features: NVIDIA Analytics integration, per-stream counting, live overlay"
+    python3 src/analytics_stream_counter.py "$CONFIG_TO_USE"
+elif [ -f "src/advanced_live_counter.py" ]; then
+    echo "📊 Running DeepStream with advanced live object counting..."
+    echo "📊 Features: Real-time counting, GUI overlay, persistent storage"
+    python3 src/advanced_live_counter.py "$CONFIG_TO_USE"
+elif [ -f "src/simple_live_counter.py" ]; then
+    echo "📊 Running DeepStream with simple live counting..."
+    python3 src/simple_live_counter.py "$CONFIG_TO_USE"
+elif [ -f "src/production_deepstream.py" ]; then
     python3 src/production_deepstream.py "$CONFIG_TO_USE"
 else
     echo "📱 Running direct DeepStream application..."

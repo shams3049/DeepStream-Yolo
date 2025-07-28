@@ -2,4 +2,4 @@
 msg2p-lib=/opt/nvidia/deepstream/deepstream/lib/libnvds_msgconv.so
 conv-msg2p-new-api=1
 frame-interval=30
-config-file=message_payload_keys.txt
+config-file=/home/deepstream/DeepStream-Yolo/configs/components/message_payload_keys.txt

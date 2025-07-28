@@ -293,28 +293,41 @@ class ProductionMQTTPublisher:
         print("🛑 Stopped continuous MQTT publishing")
 
 def main():
-    """Test the production MQTT publisher"""
+    """Run the production MQTT publisher persistently with auto-reconnect"""
     publisher = ProductionMQTTPublisher()
-    
-    try:
-        if publisher.connect():
-            print("✅ Production MQTT publisher connected")
-            publisher.start_continuous_publishing()
-            
-            # Keep running
-            print("🔄 Publishing to production MQTT broker...")
-            print("🛑 Press Ctrl+C to stop")
-            
-            while True:
+    reconnect_delay = 5  # seconds
+
+    while True:
+        try:
+            if not publisher.connected:
+                print("🔌 Attempting to connect to MQTT broker...")
+                if publisher.connect():
+                    print("✅ MQTT Publisher connected, starting publishing.")
+                    publisher.start_continuous_publishing()
+                else:
+                    print(f"❌ Connection failed. Retrying in {reconnect_delay} seconds...")
+                    time.sleep(reconnect_delay)
+                    continue
+
+            # If connected, just keep the script alive and check connection
+            while publisher.connected:
                 time.sleep(1)
-                
-        else:
-            print("❌ Failed to connect to production MQTT broker")
             
-    except KeyboardInterrupt:
-        print("\n🛑 Stopping production MQTT publisher...")
-    finally:
-        publisher.disconnect()
+            # This part is reached when on_disconnect sets publisher.connected to False
+            print(f"🔌 MQTT disconnected. Attempting to reconnect in {reconnect_delay} seconds...")
+            publisher.stop_publishing()
+            publisher.client.loop_stop()
+            time.sleep(reconnect_delay)
+
+        except KeyboardInterrupt:
+            print("\n🛑 Stopping production MQTT publisher...")
+            break
+        except Exception as e:
+            print(f"❌ An unexpected error occurred in the main loop: {e}")
+            print(f"🔁 Retrying in {reconnect_delay} seconds...")
+            time.sleep(reconnect_delay)
+    
+    publisher.disconnect()
 
 if __name__ == "__main__":
     main()

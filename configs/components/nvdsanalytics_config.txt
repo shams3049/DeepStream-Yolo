@@ -7,14 +7,14 @@ display-font-size=14
 
 [line-crossing-stream-0]
 enable=1
-class-id=0
-line-crossing-LC0=200;900;1720;900
+class-id=-1
+line-crossing-LC0=0;972;1920;972
 extended=1
 mode=loose
 
 [line-crossing-stream-1]
 enable=1
-class-id=0
-line-crossing-LC1=200;900;1720;900
+class-id=-1
+line-crossing-LC1=0;972;1920;972
 extended=1
 mode=loose

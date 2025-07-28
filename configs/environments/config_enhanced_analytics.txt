@@ -1,5 +1,5 @@
-# Production Environment Configuration - RTSP Cameras
-# Complete DeepStream configuration for RTSP camera sources
+# Enhanced Production Environment Configuration - RTSP Cameras with Analytics
+# Complete DeepStream configuration with enhanced per-stream object counting
 
 [application]
 enable-perf-measurement=1
@@ -38,14 +38,14 @@ gpu-id=0
 nvbuf-memory-type=0
 
 [sink1]
-enable=1
+enable=0
 type=6
 msg-conv-config=configs/components/msg_config.txt
 msg-conv-payload-type=0
 msg-conv-msg2p-new-api=1
 msg-broker-config=configs/components/mqtt_broker_config.txt
 msg-broker-proto-lib=/opt/nvidia/deepstream/deepstream-7.1/lib/libnvds_mqtt_proto.so
-msg-broker-conn-str=mqtt-proxy.ad.dicodrink.com;1883
+msg-broker-conn-str=your-mqtt-broker.com;1883
 topic=camera/stream
 sync=0
 
@@ -92,4 +92,4 @@ gpu-id=0
 
 [nvds-analytics]
 enable=1
-config-file=/home/deepstream/DeepStream-Yolo/configs/components/nvdsanalytics_config.txt
+config-file=/home/deepstream/DeepStream-Yolo/configs/components/enhanced_analytics_config.txt
