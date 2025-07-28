@@ -1,0 +1,10 @@
+[roi-filtering]
+roi-id=1
+roi=0;0;1920;0;1920;1080;0;1080
+
+[line-crossing]
+line-crossing-id=1
+roi-id=1
+line=600;400;1320;400
+direction=0
+class-id=-1

@@ -1,0 +1,13 @@
+[message-broker]
+# MQTT Broker Configuration
+# Replace these values with your actual MQTT broker credentials
+
+username = your_mqtt_username
+password = your_mqtt_password
+client-id = deepstream-production-counter
+keep-alive = 60
+
+# Note: Broker host and port are configured in the production sources file
+# or can be set via environment variables:
+# export MQTT_BROKER_HOST=your-broker.com
+# export MQTT_BROKER_PORT=1883

@@ -1,0 +1,8 @@
+payload=object
+send-stream-id=1
+send-timestamp=1
+send-object-id=1
+send-class-id=1
+send-track-id=1
+send-bbox=1
+send-analytics=1

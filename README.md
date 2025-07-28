@@ -1,413 +1,263 @@
-# DeepStream-Yolo
+# DeepStream Object Counter with MQTT Broadcasting
 
-NVIDIA DeepStream SDK 7.1 / 7.0 / 6.4 / 6.3 / 6.2 / 6.1.1 / 6.1 / 6.0.1 / 6.0 / 5.1  configuration for YOLO models
+A production-ready NVIDIA DeepStream application for real-time object counting with MQTT integration for industrial IoT monitoring.
 
---------------------------------------------------------------------------------------------------
-### For now, I am limited for some updates. Thank you for understanding.
---------------------------------------------------------------------------------------------------
-### YOLO-Pose: https://github.com/marcoslucianops/DeepStream-Yolo-Pose
-### YOLO-Seg: https://github.com/marcoslucianops/DeepStream-Yolo-Seg
-### YOLO-Face: https://github.com/marcoslucianops/DeepStream-Yolo-Face
---------------------------------------------------------------------------------------------------
-### Important: please export the ONNX model with the new export file, generate the TensorRT engine again with the updated files, and use the new config_infer_primary file according to your model
---------------------------------------------------------------------------------------------------
+## 🏭 Features
 
-### Improvements on this repository
+- **Real-time Object Detection**: YOLO11-based object detection using NVIDIA DeepStream SDK
+- **Persistent Counting**: Thread-safe object counting with JSON persistence across application restarts
+- **MQTT Broadcasting**: Real-time count broadcasting to external MQTT broker every 1 second
+- **Multi-Camera Support**: Supports up to 4 RTSP camera streams simultaneously
+- **Health Monitoring**: System health metrics broadcasting every 5 seconds
+- **Production Ready**: Optimized for industrial deployment with external MQTT broker integration
 
-* Support for INT8 calibration
-* Support for non square models
-* Models benchmarks
-* Support for Darknet models (YOLOv4, etc) using cfg and weights conversion with GPU post-processing
-* Support for D-FINE, RT-DETR, CO-DETR (MMDetection), YOLO-NAS, PPYOLOE+, PPYOLOE, DAMO-YOLO, Gold-YOLO, RTMDet (MMYOLO), YOLOX, YOLOR, YOLO11, YOLOv10, YOLOv9, YOLOv8, YOLOv7, YOLOv6, YOLOv5u and YOLOv5 using ONNX conversion with GPU post-processing
-* GPU bbox parser
-* Custom ONNX model parser
-* Dynamic batch-size
-* INT8 calibration (PTQ) for Darknet and ONNX exported models
+## 🚀 Quick Start
 
-##
+### Prerequisites
 
-### Getting started
+- NVIDIA Jetson device with DeepStream SDK 7.x
+- NVIDIA GPU with CUDA support
+- Python 3.8+
+- RTSP camera streams
+- External MQTT broker access
 
-* [Requirements](#requirements)
-* [Supported models](#supported-models)
-* [Benchmarks](docs/benchmarks.md)
-* [dGPU installation](docs/dGPUInstalation.md)
-* [Basic usage](#basic-usage)
-* [Docker usage](#docker-usage)
-* [NMS configuration](#nms-configuration)
-* [Notes](#notes)
-* [INT8 calibration](docs/INT8Calibration.md)
-* [YOLOv5 usage](docs/YOLOv5.md)
-* [YOLOv5u usage](docs/YOLOv5u.md)
-* [YOLOv6 usage](docs/YOLOv6.md)
-* [YOLOv7 usage](docs/YOLOv7.md)
-* [YOLOv8 usage](docs/YOLOv8.md)
-* [YOLOv9 usage](docs/YOLOv9.md)
-* [YOLOv10 usage](docs/YOLOv10.md)
-* [YOLO11 usage](docs/YOLO11.md)
-* [YOLOR usage](docs/YOLOR.md)
-* [YOLOX usage](docs/YOLOX.md)
-* [RTMDet (MMYOLO) usage](docs/RTMDet.md)
-* [Gold-YOLO usage](docs/GoldYOLO.md)
-* [DAMO-YOLO usage](docs/DAMOYOLO.md)
-* [PP-YOLOE / PP-YOLOE+ usage](docs/PPYOLOE.md)
-* [YOLO-NAS usage](docs/YOLONAS.md)
-* [CO-DETR (MMDetection) usage](docs/CODETR.md)
-* [RT-DETR PyTorch usage](docs/RTDETR_PyTorch.md)
-* [RT-DETR Paddle usage](docs/RTDETR_Paddle.md)
-* [RT-DETR Ultralytics usage](docs/RTDETR_Ultralytics.md)
-* [D-FINE usage](docs/DFINE.md)
-* [Using your custom model](docs/customModels.md)
-* [Multiple YOLO GIEs](docs/multipleGIEs.md)
+### Installation
 
-##
-
-### Requirements
-
-#### DeepStream 7.1 on x86 platform
-
-* [Ubuntu 22.04](https://releases.ubuntu.com/22.04/)
-* [CUDA 12.6 Update 2](https://developer.nvidia.com/cuda-downloads?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=22.04&target_type=runfile_local)
-* [TensorRT 10.3 GA (10.3.0.26)](https://developer.nvidia.com/nvidia-tensorrt-8x-download)
-* [NVIDIA Driver 535.183.06 (Data center / Tesla series) / 560.35.03 (TITAN, GeForce RTX / GTX series and RTX / Quadro series)](https://www.nvidia.com/Download/index.aspx)
-* [NVIDIA DeepStream SDK 7.1](https://catalog.ngc.nvidia.com/orgs/nvidia/resources/deepstream/files?version=7.1)
-* [GStreamer 1.20.3](https://gstreamer.freedesktop.org/)
-* [DeepStream-Yolo](https://github.com/marcoslucianops/DeepStream-Yolo)
-
-#### DeepStream 7.0 on x86 platform
-
-* [Ubuntu 22.04](https://releases.ubuntu.com/22.04/)
-* [CUDA 12.2 Update 2](https://developer.nvidia.com/cuda-12-2-2-download-archive?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=22.04&target_type=runfile_local)
-* [TensorRT 8.6 GA (8.6.1.6)](https://developer.nvidia.com/nvidia-tensorrt-8x-download)
-* [NVIDIA Driver 535 (>= 535.161.08)](https://www.nvidia.com/Download/index.aspx)
-* [NVIDIA DeepStream SDK 7.0](https://catalog.ngc.nvidia.com/orgs/nvidia/resources/deepstream/files?version=7.0)
-* [GStreamer 1.20.3](https://gstreamer.freedesktop.org/)
-* [DeepStream-Yolo](https://github.com/marcoslucianops/DeepStream-Yolo)
-
-#### DeepStream 6.4 on x86 platform
-
-* [Ubuntu 22.04](https://releases.ubuntu.com/22.04/)
-* [CUDA 12.2 Update 2](https://developer.nvidia.com/cuda-12-2-2-download-archive?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=22.04&target_type=runfile_local)
-* [TensorRT 8.6 GA (8.6.1.6)](https://developer.nvidia.com/nvidia-tensorrt-8x-download)
-* [NVIDIA Driver 535 (>= 535.104.12)](https://www.nvidia.com/Download/index.aspx)
-* [NVIDIA DeepStream SDK 6.4](https://catalog.ngc.nvidia.com/orgs/nvidia/resources/deepstream/files?version=6.4)
-* [GStreamer 1.20.3](https://gstreamer.freedesktop.org/)
-* [DeepStream-Yolo](https://github.com/marcoslucianops/DeepStream-Yolo)
-
-#### DeepStream 6.3 on x86 platform
-
-* [Ubuntu 20.04](https://releases.ubuntu.com/20.04/)
-* [CUDA 12.1 Update 1](https://developer.nvidia.com/cuda-12-1-1-download-archive?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=20.04&target_type=runfile_local)
-* [TensorRT 8.5 GA Update 2 (8.5.3.1)](https://developer.nvidia.com/nvidia-tensorrt-8x-download)
-* [NVIDIA Driver 525 (>= 525.125.06)](https://www.nvidia.com/Download/index.aspx)
-* [NVIDIA DeepStream SDK 6.3](https://catalog.ngc.nvidia.com/orgs/nvidia/resources/deepstream/files?version=6.3)
-* [GStreamer 1.16.3](https://gstreamer.freedesktop.org/)
-* [DeepStream-Yolo](https://github.com/marcoslucianops/DeepStream-Yolo)
-
-#### DeepStream 6.2 on x86 platform
-
-* [Ubuntu 20.04](https://releases.ubuntu.com/20.04/)
-* [CUDA 11.8](https://developer.nvidia.com/cuda-11-8-0-download-archive?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=20.04&target_type=runfile_local)
-* [TensorRT 8.5 GA Update 1 (8.5.2.2)](https://developer.nvidia.com/nvidia-tensorrt-8x-download)
-* [NVIDIA Driver 525 (>= 525.85.12)](https://www.nvidia.com/Download/index.aspx)
-* [NVIDIA DeepStream SDK 6.2](https://developer.nvidia.com/deepstream-sdk-download-tesla-archived)
-* [GStreamer 1.16.3](https://gstreamer.freedesktop.org/)
-* [DeepStream-Yolo](https://github.com/marcoslucianops/DeepStream-Yolo)
-
-#### DeepStream 6.1.1 on x86 platform
-
-* [Ubuntu 20.04](https://releases.ubuntu.com/20.04/)
-* [CUDA 11.7 Update 1](https://developer.nvidia.com/cuda-11-7-1-download-archive?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=20.04&target_type=runfile_local)
-* [TensorRT 8.4 GA (8.4.1.5)](https://developer.nvidia.com/nvidia-tensorrt-8x-download)
-* [NVIDIA Driver 515.65.01](https://www.nvidia.com/Download/index.aspx)
-* [NVIDIA DeepStream SDK 6.1.1](https://developer.nvidia.com/deepstream-sdk-download-tesla-archived)
-* [GStreamer 1.16.2](https://gstreamer.freedesktop.org/)
-* [DeepStream-Yolo](https://github.com/marcoslucianops/DeepStream-Yolo)
-
-#### DeepStream 6.1 on x86 platform
-
-* [Ubuntu 20.04](https://releases.ubuntu.com/20.04/)
-* [CUDA 11.6 Update 1](https://developer.nvidia.com/cuda-11-6-1-download-archive?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=20.04&target_type=runfile_local)
-* [TensorRT 8.2 GA Update 4 (8.2.5.1)](https://developer.nvidia.com/nvidia-tensorrt-8x-download)
-* [NVIDIA Driver 510.47.03](https://www.nvidia.com/Download/index.aspx)
-* [NVIDIA DeepStream SDK 6.1](https://developer.nvidia.com/deepstream-sdk-download-tesla-archived)
-* [GStreamer 1.16.2](https://gstreamer.freedesktop.org/)
-* [DeepStream-Yolo](https://github.com/marcoslucianops/DeepStream-Yolo)
-
-#### DeepStream 6.0.1 / 6.0 on x86 platform
-
-* [Ubuntu 18.04](https://releases.ubuntu.com/18.04.6/)
-* [CUDA 11.4 Update 1](https://developer.nvidia.com/cuda-11-4-1-download-archive?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=18.04&target_type=runfile_local)
-* [TensorRT 8.0 GA (8.0.1)](https://developer.nvidia.com/nvidia-tensorrt-8x-download)
-* [NVIDIA Driver 470.63.01](https://www.nvidia.com/Download/index.aspx)
-* [NVIDIA DeepStream SDK 6.0.1 / 6.0](https://developer.nvidia.com/deepstream-sdk-download-tesla-archived)
-* [GStreamer 1.14.5](https://gstreamer.freedesktop.org/)
-* [DeepStream-Yolo](https://github.com/marcoslucianops/DeepStream-Yolo)
-
-#### DeepStream 5.1 on x86 platform
-
-* [Ubuntu 18.04](https://releases.ubuntu.com/18.04.6/)
-* [CUDA 11.1](https://developer.nvidia.com/cuda-11.1.0-download-archive?target_os=Linux&target_arch=x86_64&target_distro=Ubuntu&target_version=1804&target_type=runfilelocal)
-* [TensorRT 7.2.2](https://developer.nvidia.com/nvidia-tensorrt-7x-download)
-* [NVIDIA Driver 460.32.03](https://www.nvidia.com/Download/index.aspx)
-* [NVIDIA DeepStream SDK 5.1](https://developer.nvidia.com/deepstream-sdk-download-tesla-archived)
-* [GStreamer 1.14.5](https://gstreamer.freedesktop.org/)
-* [DeepStream-Yolo](https://github.com/marcoslucianops/DeepStream-Yolo)
-
-#### DeepStream 7.1 on Jetson platform
-
-* [JetPack 6.1](https://developer.nvidia.com/embedded/jetpack-sdk-61)
-* [NVIDIA DeepStream SDK 7.1](https://catalog.ngc.nvidia.com/orgs/nvidia/resources/deepstream/files?version=7.1)
-* [DeepStream-Yolo](https://github.com/marcoslucianops/DeepStream-Yolo)
-
-#### DeepStream 7.0 on Jetson platform
-
-* [JetPack 6.0](https://developer.nvidia.com/embedded/jetpack-sdk-60)
-* [NVIDIA DeepStream SDK 7.0](https://catalog.ngc.nvidia.com/orgs/nvidia/resources/deepstream/files?version=7.0)
-* [DeepStream-Yolo](https://github.com/marcoslucianops/DeepStream-Yolo)
-
-#### DeepStream 6.4 on Jetson platform
-
-* [JetPack 6.0 DP](https://developer.nvidia.com/embedded/jetpack-sdk-60dp)
-* [NVIDIA DeepStream SDK 6.4](https://catalog.ngc.nvidia.com/orgs/nvidia/resources/deepstream/files?version=6.4)
-* [DeepStream-Yolo](https://github.com/marcoslucianops/DeepStream-Yolo)
-
-#### DeepStream 6.3 on Jetson platform
-
-* JetPack [5.1.3](https://developer.nvidia.com/embedded/jetpack-sdk-513) / [5.1.2](https://developer.nvidia.com/embedded/jetpack-sdk-512)
-* [NVIDIA DeepStream SDK 6.3](https://catalog.ngc.nvidia.com/orgs/nvidia/resources/deepstream/files?version=6.3)
-* [DeepStream-Yolo](https://github.com/marcoslucianops/DeepStream-Yolo)
-
-#### DeepStream 6.2 on Jetson platform
-
-* JetPack [5.1.3](https://developer.nvidia.com/embedded/jetpack-sdk-513) / [5.1.2](https://developer.nvidia.com/embedded/jetpack-sdk-512) / [5.1.1](https://developer.nvidia.com/embedded/jetpack-sdk-511) / [5.1](https://developer.nvidia.com/embedded/jetpack-sdk-51)
-* [NVIDIA DeepStream SDK 6.2](https://developer.nvidia.com/embedded/deepstream-on-jetson-downloads-archived)
-* [DeepStream-Yolo](https://github.com/marcoslucianops/DeepStream-Yolo)
-
-#### DeepStream 6.1.1 on Jetson platform
-
-* [JetPack 5.0.2](https://developer.nvidia.com/embedded/jetpack-sdk-502)
-* [NVIDIA DeepStream SDK 6.1.1](https://developer.nvidia.com/embedded/deepstream-on-jetson-downloads-archived)
-* [DeepStream-Yolo](https://github.com/marcoslucianops/DeepStream-Yolo)
-
-#### DeepStream 6.1 on Jetson platform
-
-* [JetPack 5.0.1 DP](https://developer.nvidia.com/embedded/jetpack-sdk-501dp)
-* [NVIDIA DeepStream SDK 6.1](https://developer.nvidia.com/embedded/deepstream-on-jetson-downloads-archived)
-* [DeepStream-Yolo](https://github.com/marcoslucianops/DeepStream-Yolo)
-
-#### DeepStream 6.0.1 / 6.0 on Jetson platform
-
-* [JetPack 4.6.4](https://developer.nvidia.com/jetpack-sdk-464)
-* [NVIDIA DeepStream SDK 6.0.1 / 6.0](https://developer.nvidia.com/embedded/deepstream-on-jetson-downloads-archived)
-* [DeepStream-Yolo](https://github.com/marcoslucianops/DeepStream-Yolo)
-
-#### DeepStream 5.1 on Jetson platform
-
-* [JetPack 4.5.1](https://developer.nvidia.com/embedded/jetpack-sdk-451-archive)
-* [NVIDIA DeepStream SDK 5.1](https://developer.nvidia.com/embedded/deepstream-on-jetson-downloads-archived)
-* [DeepStream-Yolo](https://github.com/marcoslucianops/DeepStream-Yolo)
-
-##
-
-### Supported models
-
-* [Darknet](https://github.com/AlexeyAB/darknet)
-* [MobileNet-YOLO](https://github.com/dog-qiuqiu/MobileNet-Yolo)
-* [YOLO-Fastest](https://github.com/dog-qiuqiu/Yolo-Fastest)
-* [YOLOv5](https://github.com/ultralytics/yolov5)
-* [YOLOv5u](https://github.com/ultralytics/ultralytics)
-* [YOLOv6](https://github.com/meituan/YOLOv6)
-* [YOLOv7](https://github.com/WongKinYiu/yolov7)
-* [YOLOv8](https://github.com/ultralytics/ultralytics)
-* [YOLOv9](https://github.com/WongKinYiu/yolov9)
-* [YOLOv10](https://github.com/THU-MIG/yolov10)
-* [YOLO11](https://github.com/ultralytics/ultralytics)
-* [YOLOR](https://github.com/WongKinYiu/yolor)
-* [YOLOX](https://github.com/Megvii-BaseDetection/YOLOX)
-* [RTMDet (MMYOLO)](https://github.com/open-mmlab/mmyolo/tree/main/configs/rtmdet)
-* [Gold-YOLO](https://github.com/huawei-noah/Efficient-Computing/tree/master/Detection/Gold-YOLO)
-* [DAMO-YOLO](https://github.com/tinyvision/DAMO-YOLO)
-* [PP-YOLOE / PP-YOLOE+](https://github.com/PaddlePaddle/PaddleDetection/tree/release/2.8/configs/ppyoloe)
-* [YOLO-NAS](https://github.com/Deci-AI/super-gradients/blob/master/YOLONAS.md)
-* [CO-DETR (MMDetection)](https://github.com/open-mmlab/mmdetection/tree/main/projects/CO-DETR)
-* [RT-DETR](https://github.com/lyuwenyu/RT-DETR)
-* [D-FINE](https://github.com/Peterande/D-FINE)
-
-##
-
-### Basic usage
-
-#### 1. Download the repo
-
-```
-git clone https://github.com/marcoslucianops/DeepStream-Yolo.git
-cd DeepStream-Yolo
+1. **Clone the repository**
+```bash
+git clone <repository-url>
+cd DeepStream-Object-Counter
 ```
 
-#### 2. Download the `cfg` and `weights` files from [Darknet](https://github.com/AlexeyAB/darknet) repo to the DeepStream-Yolo folder
-
-#### 3. Compile the lib
-
-3.1. Set the `CUDA_VER` according to your DeepStream version
-
-```
-export CUDA_VER=XY.Z
+2. **Install Python dependencies**
+```bash
+pip3 install paho-mqtt psutil
 ```
 
-* x86 platform
-
-  ```
-  DeepStream 7.1 = 12.6
-  DeepStream 7.0 / 6.4 = 12.2
-  DeepStream 6.3 = 12.1
-  DeepStream 6.2 = 11.8
-  DeepStream 6.1.1 = 11.7
-  DeepStream 6.1 = 11.6
-  DeepStream 6.0.1 / 6.0 = 11.4
-  DeepStream 5.1 = 11.1
-  ```
-
-* Jetson platform
-
-  ```
-  DeepStream 7.1 = 12.6
-  DeepStream 7.0 / 6.4 = 12.2
-  DeepStream 6.3 / 6.2 / 6.1.1 / 6.1 = 11.4
-  DeepStream 6.0.1 / 6.0 / 5.1 = 10.2
-  ```
-
-3.2. Make the lib
-
-```
-make -C nvdsinfer_custom_impl_Yolo clean && make -C nvdsinfer_custom_impl_Yolo
+3. **Configure MQTT broker**
+Edit `configs/components/mqtt_broker_config.txt` with your MQTT broker credentials:
+```ini
+[message-broker]
+username = your_username
+password = your_password
+client-id = deepstream-production-counter
+keep-alive = 60
 ```
 
-#### 4. Edit the `config_infer_primary.txt` file according to your model (example for YOLOv4)
-
-```
-[property]
-...
-custom-network-config=yolov4.cfg
-model-file=yolov4.weights
-...
-```
-
-**NOTE**: For **Darknet** models, by default, the dynamic batch-size is set. To use static batch-size, uncomment the line
-
-```
-...
-force-implicit-batch-dim=1
-...
+4. **Configure camera sources**
+Edit `configs/environments/config_sources_production.txt` with your RTSP camera URLs:
+```ini
+[source0]
+uri=rtsp://username:password@camera1_ip:554/stream
+[source1]
+uri=rtsp://username:password@camera2_ip:554/stream
+# ... etc
 ```
 
-#### 5. Run
+### Running the Application
 
-```
-deepstream-app -c deepstream_app_config.txt
-```
-
-**NOTE**: The TensorRT engine file may take a very long time to generate (sometimes more than 10 minutes).
-
-**NOTE**: If you want to use YOLOv2 or YOLOv2-Tiny models, change the `deepstream_app_config.txt` file before run it
-
-```
-...
-[primary-gie]
-...
-config-file=config_infer_primary_yoloV2.txt
-...
+**Start the production system:**
+```bash
+./scripts/start_production.sh
 ```
 
-##
+**Or run components separately:**
+```bash
+# Start MQTT broadcasting
+python3 src/production_mqtt.py &
 
-### Docker usage
-
-* x86 platform
-
-  ```
-  nvcr.io/nvidia/deepstream:7.1-gc-triton-devel
-  nvcr.io/nvidia/deepstream:7.1-triton-multiarch
-  ```
-
-* Jetson platform
-
-  ```
-  nvcr.io/nvidia/deepstream:7.1-triton-multiarch
-  ```
-
-**NOTE**: To compile the `nvdsinfer_custom_impl_Yolo`, you need to install the g++ inside the container
-
-```
-apt-get install build-essential
+# Start DeepStream application
+python3 src/production_deepstream.py
 ```
 
-**NOTE**: With DeepStream 7.1, the docker containers do not package libraries necessary for certain multimedia operations like audio data parsing, CPU decode, and CPU encode. This change could affect processing certain video streams/files like mp4 that include audio track. Please run the below script inside the docker images to install additional packages that might be necessary to use all of the DeepStreamSDK features:
+## 📡 MQTT Topics
+
+The application publishes to simplified MQTT topics:
+
+### Camera Count Topics (1-second intervals)
+- `camera1` - Camera 1 object counts
+- `camera2` - Camera 2 object counts  
+- `camera3` - Camera 3 object counts
+- `camera4` - Camera 4 object counts
+
+### Health Status Topic (5-second intervals)
+- `deepstream/health` - System health and performance metrics
+
+## 📊 Message Format
+
+### Camera Count Message
+```json
+{
+  "timestamp": "2025-07-28T11:55:25.311223",
+  "source_id": 0,
+  "camera_name": "Assembly Line A",
+  "camera_ip": "10.20.100.101", 
+  "location": "Production Floor 1",
+  "can_count": 45,
+  "total_objects": 67,
+  "message_type": "count_update"
+}
+```
+
+### Health Status Message
+```json
+{
+  "timestamp": "2025-07-28T11:55:26.358938",
+  "system_status": "healthy",
+  "deepstream_running": true,
+  "cpu_usage": "29.1%",
+  "memory_usage": "8.0%",
+  "gpu_info": {
+    "utilization": "78%",
+    "memory_used": "3456MB",
+    "memory_total": "8192MB"
+  },
+  "total_cans_detected": 234,
+  "total_objects_detected": 456,
+  "active_cameras": 4,
+  "uptime_hours": 72.5,
+  "message_type": "health_status"
+}
+```
+
+## 🔧 Configuration
+
+### MQTT Broker Configuration
+File: `configs/components/mqtt_broker_config.txt`
+```ini
+[message-broker]
+username = your_mqtt_username
+password = your_mqtt_password
+client-id = deepstream-production-counter
+keep-alive = 60
+```
+
+### Camera Sources Configuration  
+File: `configs/environments/config_sources_production.txt`
+- Configure RTSP camera streams
+- Set resolution and encoding parameters
+- Configure MQTT broker connection string
+- Set object detection parameters
+
+### Model Configuration
+File: `configs/components/config_infer_primary_yolo11.txt`
+- YOLO11 model configuration
+- Detection thresholds
+- Class filtering
+
+## 🏗️ Architecture
 
 ```
-/opt/nvidia/deepstream/deepstream/user_additional_install.sh
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   RTSP Cameras  │───▶│  DeepStream SDK  │───▶│  Object Counter │
+│   (4 streams)   │    │   (YOLO11)       │    │  (Persistent)   │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+                                                         │
+                                                         ▼
+                       ┌─────────────────┐    ┌─────────────────┐
+                       │ External MQTT   │◀───│ MQTT Publisher  │
+                       │ Broker          │    │ (1-sec intervals)│
+                       └─────────────────┘    └─────────────────┘
 ```
 
-##
-
-### NMS Configuration
-
-To change the `nms-iou-threshold`, `pre-cluster-threshold` and `topk` values, modify the config_infer file
+## 📦 Project Structure
 
 ```
-[class-attrs-all]
-nms-iou-threshold=0.45
-pre-cluster-threshold=0.25
-topk=300
+DeepStream-Object-Counter/
+├── src/
+│   ├── object_counter.py          # Persistent object counting
+│   ├── production_mqtt.py         # MQTT broadcasting
+│   └── production_deepstream.py   # Main DeepStream application
+├── scripts/
+│   └── start_production.sh        # Production startup script
+├── configs/
+│   ├── components/
+│   │   ├── mqtt_broker_config.txt
+│   │   ├── config_infer_primary_yolo11.txt
+│   │   └── ...
+│   └── environments/
+│       └── config_sources_production.txt
+├── models/
+│   └── yolo11s.onnx              # YOLO11 model
+├── data/
+│   └── persistence/
+│       └── object_counts.json     # Persistent count storage
+└── nvdsinfer_custom_impl_Yolo/   # DeepStream YOLO plugin
 ```
 
-**NOTE**: Make sure to set `cluster-mode=2` in the config_infer file.
+## 🔍 Monitoring
 
-##
+### Test MQTT Connection
+```bash
+# Monitor all topics
+mosquitto_sub -h your-mqtt-broker.com -p 1883 \
+  -u username -P password -t '+' -v
 
-### Notes
+# Monitor specific camera
+mosquitto_sub -h your-mqtt-broker.com -p 1883 \
+  -u username -P password -t 'camera1'
 
-1. Sometimes while running gstreamer pipeline or sample apps, user can encounter error: `GLib (gthread-posix.c): Unexpected error from C library during 'pthread_setspecific': Invalid argument.  Aborting.`. The issue is caused because of a bug in `glib 2.0-2.72` version which comes with Ubuntu 22.04 by default. The issue is addressed in `glib 2.76` and its installation is required to fix the issue (https://github.com/GNOME/glib/tree/2.76.6).
+# Monitor health status
+mosquitto_sub -h your-mqtt-broker.com -p 1883 \
+  -u username -P password -t 'deepstream/health'
+```
 
-    - Migrate `glib` to newer version
+### Dashboard Integration
+The MQTT messages are JSON-formatted and ready for integration with:
+- Grafana dashboards
+- Node-RED flows
+- Custom web dashboards
+- Industrial IoT platforms
 
-      ```
-      pip3 install meson
-      pip3 install ninja
-      ```
+## 🛡️ Production Deployment
 
-      **NOTE**: It is recommended to use Python virtualenv.
+### Security Considerations
+- Use secure MQTT credentials
+- Enable MQTT TLS/SSL for production
+- Implement proper firewall rules
+- Regular security updates
 
-      ```
-      git clone https://github.com/GNOME/glib.git
-      cd glib
-      git checkout 2.76.6
-      meson build --prefix=/usr
-      ninja -C build/
-      cd build/
-      ninja install
-      ```
+### Performance Optimization
+- Adjust batch size based on GPU memory
+- Configure appropriate detection thresholds
+- Monitor system resources
+- Use appropriate video resolution
 
-    - Check and confirm the newly installed glib version:
+### Reliability Features
+- Automatic application restart on failure
+- Persistent count storage
+- MQTT reconnection handling
+- Health monitoring alerts
 
-      ```
-      pkg-config --modversion glib-2.0
-      ```
+## 📚 Dependencies
 
-2. Sometimes with RTSP streams the application gets stuck on reaching EOS. This is because of an issue in rtpjitterbuffer component. To fix this issue, a script has been provided with required details to update gstrtpmanager library.
+- **NVIDIA DeepStream SDK 7.x**
+- **CUDA 12.x**
+- **Python 3.8+**
+- **paho-mqtt** - MQTT client library
+- **psutil** - System monitoring
+- **TensorRT** - GPU inference optimization
 
-    ```
-    /opt/nvidia/deepstream/deepstream/update_rtpmanager.sh
-    ```
+## 🤝 Contributing
 
-##
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
 
-### Extract metadata
+## 📄 License
 
-You can get metadata from DeepStream using Python and C/C++. For C/C++, you can edit the `deepstream-app` or `deepstream-test` codes. For Python, your can install and edit [deepstream_python_apps](https://github.com/NVIDIA-AI-IOT/deepstream_python_apps).
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-Basically, you need manipulate the `NvDsObjectMeta` ([Python](https://docs.nvidia.com/metropolis/deepstream/dev-guide/python-api/PYTHON_API/NvDsMeta/NvDsObjectMeta.html) / [C/C++](https://docs.nvidia.com/metropolis/deepstream/dev-guide/sdk-api/struct__NvDsObjectMeta.html)) `and NvDsFrameMeta` ([Python](https://docs.nvidia.com/metropolis/deepstream/dev-guide/python-api/PYTHON_API/NvDsMeta/NvDsFrameMeta.html) / [C/C++](https://docs.nvidia.com/metropolis/deepstream/dev-guide/sdk-api/struct__NvDsFrameMeta.html)) to get the label, position, etc. of bboxes.
+## 🆘 Support
 
-##
+For technical support and questions:
+- Create an issue in this repository
+- Check the configuration files for proper setup
+- Verify MQTT broker connectivity
+- Ensure DeepStream SDK is properly installed
 
-My projects: https://www.youtube.com/MarcosLucianoTV
+## 🏷️ Version
+
+Current version: 1.0.0 - Production Ready
