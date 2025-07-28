@@ -1,5 +1,5 @@
-# Production Environment Configuration - RTSP Cameras
-# Complete DeepStream configuration for RTSP camera sources
+# Simple Test Configuration - No MQTT, Display Only
+# For testing RTSP camera connectivity
 
 [application]
 enable-perf-measurement=1
@@ -36,18 +36,6 @@ type=2
 sync=0
 gpu-id=0
 nvbuf-memory-type=0
-
-[sink1]
-enable=0
-type=6
-msg-conv-config=configs/components/msg_config.txt
-msg-conv-payload-type=0
-msg-conv-msg2p-new-api=1
-msg-broker-config=configs/components/mqtt_broker_config.txt
-msg-broker-proto-lib=/opt/nvidia/deepstream/deepstream-7.1/lib/libnvds_mqtt_proto.so
-msg-broker-conn-str=your-mqtt-broker.com;1883
-topic=camera/stream
-sync=0
 
 [osd]
 enable=1
@@ -88,7 +76,3 @@ tracker-height=384
 ll-lib-file=/opt/nvidia/deepstream/deepstream/lib/libnvds_nvmultiobjecttracker.so
 ll-config-file=/home/deepstream/DeepStream-Yolo/configs/components/tracker_config.txt
 gpu-id=0
-
-[nvds-analytics]
-enable=0
-config-file=/home/deepstream/DeepStream-Yolo/configs/components/nvdsanalytics_config.txt

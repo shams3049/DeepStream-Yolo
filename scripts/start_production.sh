@@ -1,27 +1,7 @@
 #!/bin/bash
 
 # Production DeepStream Object Counter Launch Script
-# Starts D# Test MQTT broker connectivity
-echo "📡 Testing MQTT broker connectivity..."
-echo "   Broker: $MQTT_BROKER_HOST:$MQTT_BROKER_PORT"
-
-timeout 5 bash -c "</dev/tcp/$MQTT_BROKER_HOST/$MQTT_BROKER_PORT" 2>/dev/null && \
-    echo "✅ External MQTT broker reachable at $MQTT_BROKER_HOST:$MQTT_BROKER_PORT" || \
-    echo "⚠️  External MQTT broker not reachable at $MQTT_BROKER_HOST:$MQTT_BROKER_PORT (check network connectivity)"
-
-# Test camera connectivity and choose appropriate config
-echo "📷 Testing camera connectivity..."
-CONFIG_TO_USE="$PRODUCTION_CONFIG"
-
-if timeout 3 ping -c 1 10.20.100.102 >/dev/null 2>&1 && timeout 3 ping -c 1 10.20.100.103 >/dev/null 2>&1; then
-    echo "✅ RTSP cameras accessible - using production config"
-    CONFIG_TO_USE="$PRODUCTION_CONFIG"
-else
-    echo "⚠️  RTSP cameras not accessible - using test video config"
-    CONFIG_TO_USE="$TEST_CONFIG"
-fi
-
-echo "📋 Configuration: $(basename "$CONFIG_TO_USE")"am application with MQTT broadcasting for industrial IoT monitoring
+# Starts DeepStream application with MQTT broadcasting for industrial IoT monitoring
 
 set -e  # Exit on any error
 
@@ -33,7 +13,7 @@ echo "$(date): Initializing production environment..."
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MQTT_CONFIG="$PROJECT_DIR/configs/components/mqtt_broker_config.txt"
 PRODUCTION_CONFIG="$PROJECT_DIR/configs/environments/config_sources_production.txt"
-TEST_CONFIG="$PROJECT_DIR/configs/environments/config_sources_test_2cam.txt"
+TEST_CONFIG="$PROJECT_DIR/configs/environments/config_test_simple.txt"
 
 # Set environment variables
 export CUDA_VER=12.2
@@ -85,22 +65,61 @@ if [ ! -f "$PRODUCTION_CONFIG" ]; then
 fi
 
 # Check YOLO model
-if [ ! -f "models/yolo11s.onnx" ]; then
-    echo "❌ YOLO model not found: models/yolo11s.onnx"
-    echo "Please ensure the YOLO11 model is available"
-    exit 1
+if [ ! -f "models/model_b1_gpu0_fp32.engine" ]; then
+    echo "❌ YOLO engine model not found: models/model_b1_gpu0_fp32.engine"
+    if [ -f "models/yolo11s.onnx" ]; then
+        echo "📦 ONNX model found, TensorRT engine will be generated automatically"
+    else
+        echo "❌ No YOLO model found. Please ensure a YOLO model is available"
+        exit 1
+    fi
 fi
 
 # Create data directory if needed
 mkdir -p data/persistence
 
-# Test MQTT broker connectivity
-echo "📡 Testing MQTT broker connectivity..."
-echo "   Broker: $MQTT_BROKER_HOST:$MQTT_BROKER_PORT"
+# Test camera connectivity and choose appropriate config
+echo "📷 Testing camera connectivity..."
+CONFIG_TO_USE="$PRODUCTION_CONFIG"
 
-timeout 5 bash -c "</dev/tcp/$MQTT_BROKER_HOST/$MQTT_BROKER_PORT" 2>/dev/null && 
-    echo "✅ External MQTT broker reachable at $MQTT_BROKER_HOST:$MQTT_BROKER_PORT" || 
-    echo "⚠️  External MQTT broker not reachable at $MQTT_BROKER_HOST:$MQTT_BROKER_PORT (check network connectivity)"
+if timeout 3 ping -c 1 10.20.100.102 >/dev/null 2>&1 && timeout 3 ping -c 1 10.20.100.103 >/dev/null 2>&1; then
+    echo "✅ Both RTSP cameras (10.20.100.102, 10.20.100.103) are accessible"
+    CONFIG_TO_USE="$PRODUCTION_CONFIG"
+    
+    # Ask user if they want to enable MQTT and analytics
+    echo ""
+    echo "🔧 Configuration Options:"
+    echo "1) Basic mode (display only, no MQTT/analytics) - RECOMMENDED for testing"
+    echo "2) Full production mode (with MQTT and analytics)"
+    echo ""
+    read -p "Choose mode (1/2) [default: 1]: " mode_choice
+    
+    if [ "$mode_choice" = "2" ]; then
+        echo "🔄 Enabling MQTT and analytics features..."
+        # Enable MQTT sink
+        sed -i 's/^\[sink1\]/[sink1]/; /^\[sink1\]/,/^\[/ s/enable=0/enable=1/' "$CONFIG_TO_USE"
+        # Enable analytics
+        sed -i 's/^\[nvds-analytics\]/[nvds-analytics]/; /^\[nvds-analytics\]/,/^\[/ s/enable=0/enable=1/' "$CONFIG_TO_USE"
+        
+        # Test MQTT broker connectivity
+        echo "📡 Testing MQTT broker connectivity..."
+        echo "   Broker: $MQTT_BROKER_HOST:$MQTT_BROKER_PORT"
+        
+        timeout 5 bash -c "</dev/tcp/$MQTT_BROKER_HOST/$MQTT_BROKER_PORT" 2>/dev/null && \
+            echo "✅ External MQTT broker reachable at $MQTT_BROKER_HOST:$MQTT_BROKER_PORT" || \
+            echo "⚠️  External MQTT broker not reachable at $MQTT_BROKER_HOST:$MQTT_BROKER_PORT (will continue without MQTT)"
+    else
+        echo "📺 Running in basic display mode (MQTT and analytics disabled)"
+        # Ensure MQTT and analytics are disabled
+        sed -i 's/^\[sink1\]/[sink1]/; /^\[sink1\]/,/^\[/ s/enable=1/enable=0/' "$CONFIG_TO_USE"
+        sed -i 's/^\[nvds-analytics\]/[nvds-analytics]/; /^\[nvds-analytics\]/,/^\[/ s/enable=1/enable=0/' "$CONFIG_TO_USE"
+    fi
+else
+    echo "⚠️  RTSP cameras not accessible - using test config with simple setup"
+    CONFIG_TO_USE="$TEST_CONFIG"
+fi
+
+echo "📋 Using configuration: $(basename "$CONFIG_TO_USE")"
 
 # Display system information
 echo "💻 System Information:"
@@ -108,21 +127,33 @@ echo "   GPU: $(nvidia-smi --query-gpu=name --format=csv,noheader | head -1)"
 echo "   Memory: $(free -h | awk '/^Mem:/ {print $2}') total"
 echo "   Disk: $(df -h . | awk 'NR==2 {print $4}') available"
 
-# Start MQTT publisher in background
-echo "🚀 Starting MQTT publisher..."
-python3 src/production_mqtt.py &
-MQTT_PID=$!
-echo "   MQTT Publisher PID: $MQTT_PID"
-
-# Wait for MQTT initialization
-echo "⏱️  Waiting for MQTT initialization..."
-sleep 3
+# Start MQTT publisher in background (only if MQTT is enabled)
+MQTT_PID=""
+if [ "$mode_choice" = "2" ]; then
+    echo "🚀 Starting MQTT publisher..."
+    if [ -f "src/production_mqtt.py" ]; then
+        python3 src/production_mqtt.py &
+        MQTT_PID=$!
+        echo "   MQTT Publisher PID: $MQTT_PID"
+        
+        # Wait for MQTT initialization
+        echo "⏱️  Waiting for MQTT initialization..."
+        sleep 3
+    else
+        echo "⚠️  MQTT publisher script not found, continuing without MQTT"
+    fi
+else
+    echo "📺 Skipping MQTT publisher (basic mode selected)"
+fi
 
 # Function to cleanup on exit
 cleanup() {
     echo ""
     echo "🧹 Cleaning up processes..."
-    kill $MQTT_PID 2>/dev/null || true
+    if [ -n "$MQTT_PID" ]; then
+        kill $MQTT_PID 2>/dev/null || true
+        echo "   Stopped MQTT publisher"
+    fi
     echo "✅ Production session completed"
     exit 0
 }
@@ -137,7 +168,12 @@ echo "   Press Ctrl+C to stop"
 echo ""
 
 # Run DeepStream application with selected config
-python3 src/production_deepstream.py "$CONFIG_TO_USE"
+if [ -f "src/production_deepstream.py" ]; then
+    python3 src/production_deepstream.py "$CONFIG_TO_USE"
+else
+    echo "📱 Running direct DeepStream application..."
+    deepstream-app -c "$CONFIG_TO_USE"
+fi
 
 # This point should not be reached unless DeepStream exits normally
 echo "📊 DeepStream application completed"

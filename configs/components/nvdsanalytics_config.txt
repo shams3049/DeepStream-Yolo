@@ -11,7 +11,6 @@ class-id=0
 line-crossing-LC0=200;900;1720;900
 extended=1
 mode=loose
-counter-display=1
 
 [line-crossing-stream-1]
 enable=1
@@ -19,20 +18,3 @@ class-id=0
 line-crossing-LC1=200;900;1720;900
 extended=1
 mode=loose
-counter-display=1
-
-[line-crossing-stream-2]
-enable=1
-class-id=0
-line-crossing-LC2=200;900;1720;900
-extended=1
-mode=loose
-counter-display=1
-
-[line-crossing-stream-3]
-enable=1
-class-id=0
-line-crossing-LC3=200;900;1720;900
-extended=1
-mode=loose
-counter-display=1
