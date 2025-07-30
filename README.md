@@ -1,263 +1,331 @@
-# DeepStream Object Counter with MQTT Broadcasting
+# DeepStream Object Counter - Production Documentation
 
-A production-ready NVIDIA DeepStream application for real-time object counting with MQTT integration for industrial IoT monitoring.
+## Overview
 
-## 🏭 Features
+Production-ready NVIDIA DeepStream application for real-time object counting with MQTT broadcasting. Uses tracking-based counting for accurate results and persistent storage for 24/7 operation.
 
-- **Real-time Object Detection**: YOLO11-based object detection using NVIDIA DeepStream SDK
-- **Persistent Counting**: Thread-safe object counting with JSON persistence across application restarts
-- **MQTT Broadcasting**: Real-time count broadcasting to external MQTT broker every 1 second
-- **Multi-Camera Support**: Supports up to 4 RTSP camera streams simultaneously
-- **Health Monitoring**: System health metrics broadcasting every 5 seconds
-- **Production Ready**: Optimized for industrial deployment with external MQTT broker integration
+**Key Capabilities:**
+- Real-time object detection and counting using YOLO11
+- RTSP camera support (multiple streams)  
+- MQTT real-time broadcasting
+- Persistent count storage across restarts
+- Auto-restart functionality for 24/7 operation
+- System health monitoring
 
-## 🚀 Quick Start
+## Quick Start
 
-### Prerequisites
-
-- NVIDIA Jetson device with DeepStream SDK 7.x
-- NVIDIA GPU with CUDA support
-- Python 3.8+
-- RTSP camera streams
-- External MQTT broker access
-
-### Installation
-
-1. **Clone the repository**
+### 1. Launch Production Mode
 ```bash
-git clone <repository-url>
-cd DeepStream-Object-Counter
-```
-
-2. **Install Python dependencies**
-```bash
-pip3 install paho-mqtt psutil
-```
-
-3. **Configure MQTT broker**
-Edit `configs/components/mqtt_broker_config.txt` with your MQTT broker credentials:
-```ini
-[message-broker]
-username = your_username
-password = your_password
-client-id = deepstream-production-counter
-keep-alive = 60
-```
-
-4. **Configure camera sources**
-Edit `configs/environments/config_sources_production.txt` with your RTSP camera URLs:
-```ini
-[source0]
-uri=rtsp://username:password@camera1_ip:554/stream
-[source1]
-uri=rtsp://username:password@camera2_ip:554/stream
-# ... etc
-```
-
-### Running the Application
-
-**Start the production system:**
-```bash
+# Interactive mode (choose option 2 for production)
 ./scripts/start_production.sh
+
+# Direct infinite mode for 24/7 operation
+./scripts/start_production.sh --mode infinite
 ```
 
-**Or run components separately:**
+### 2. Test MQTT Reception
 ```bash
-# Start MQTT broadcasting
-python3 src/production_mqtt.py &
-
-# Start DeepStream application
-python3 src/production_deepstream.py
+python3 scripts/test_mqtt_subscriber.py
 ```
 
-## 📡 MQTT Topics
+## System Requirements
 
-The application publishes to simplified MQTT topics:
+- **Hardware**: NVIDIA Jetson or GPU-enabled system
+- **Software**: NVIDIA DeepStream SDK 7.x, CUDA 12.2+
+- **Python**: 3.8+ with `paho-mqtt`, `psutil`
+- **Network**: RTSP camera access, MQTT broker connectivity
 
-### Camera Count Topics (1-second intervals)
-- `camera1` - Camera 1 object counts
-- `camera2` - Camera 2 object counts  
-- `camera3` - Camera 3 object counts
-- `camera4` - Camera 4 object counts
+## Configuration
 
-### Health Status Topic (5-second intervals)
-- `deepstream/health` - System health and performance metrics
-
-## 📊 Message Format
-
-### Camera Count Message
-```json
-{
-  "timestamp": "2025-07-28T11:55:25.311223",
-  "source_id": 0,
-  "camera_name": "Assembly Line A",
-  "camera_ip": "10.20.100.101", 
-  "location": "Production Floor 1",
-  "can_count": 45,
-  "total_objects": 67,
-  "message_type": "count_update"
-}
-```
-
-### Health Status Message
-```json
-{
-  "timestamp": "2025-07-28T11:55:26.358938",
-  "system_status": "healthy",
-  "deepstream_running": true,
-  "cpu_usage": "29.1%",
-  "memory_usage": "8.0%",
-  "gpu_info": {
-    "utilization": "78%",
-    "memory_used": "3456MB",
-    "memory_total": "8192MB"
-  },
-  "total_cans_detected": 234,
-  "total_objects_detected": 456,
-  "active_cameras": 4,
-  "uptime_hours": 72.5,
-  "message_type": "health_status"
-}
-```
-
-## 🔧 Configuration
-
-### MQTT Broker Configuration
+### MQTT Broker Setup
 File: `configs/components/mqtt_broker_config.txt`
 ```ini
 [message-broker]
-username = your_mqtt_username
-password = your_mqtt_password
+username = r_vmays
+password = csYr9xH&WTfAvMj2
 client-id = deepstream-production-counter
 keep-alive = 60
 ```
 
-### Camera Sources Configuration  
-File: `configs/environments/config_sources_production.txt`
-- Configure RTSP camera streams
-- Set resolution and encoding parameters
-- Configure MQTT broker connection string
-- Set object detection parameters
-
-### Model Configuration
-File: `configs/components/config_infer_primary_yolo11.txt`
-- YOLO11 model configuration
-- Detection thresholds
-- Class filtering
-
-## 🏗️ Architecture
-
-```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   RTSP Cameras  │───▶│  DeepStream SDK  │───▶│  Object Counter │
-│   (4 streams)   │    │   (YOLO11)       │    │  (Persistent)   │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-                                                         │
-                                                         ▼
-                       ┌─────────────────┐    ┌─────────────────┐
-                       │ External MQTT   │◀───│ MQTT Publisher  │
-                       │ Broker          │    │ (1-sec intervals)│
-                       └─────────────────┘    └─────────────────┘
-```
-
-## 📦 Project Structure
-
-```
-DeepStream-Object-Counter/
-├── src/
-│   ├── object_counter.py          # Persistent object counting
-│   ├── production_mqtt.py         # MQTT broadcasting
-│   └── production_deepstream.py   # Main DeepStream application
-├── scripts/
-│   └── start_production.sh        # Production startup script
-├── configs/
-│   ├── components/
-│   │   ├── mqtt_broker_config.txt
-│   │   ├── config_infer_primary_yolo11.txt
-│   │   └── ...
-│   └── environments/
-│       └── config_sources_production.txt
-├── models/
-│   └── yolo11s.onnx              # YOLO11 model
-├── data/
-│   └── persistence/
-│       └── object_counts.json     # Persistent count storage
-└── nvdsinfer_custom_impl_Yolo/   # DeepStream YOLO plugin
-```
-
-## 🔍 Monitoring
-
-### Test MQTT Connection
+**Environment Variables** (overrides file config):
 ```bash
-# Monitor all topics
-mosquitto_sub -h your-mqtt-broker.com -p 1883 \
-  -u username -P password -t '+' -v
-
-# Monitor specific camera
-mosquitto_sub -h your-mqtt-broker.com -p 1883 \
-  -u username -P password -t 'camera1'
-
-# Monitor health status
-mosquitto_sub -h your-mqtt-broker.com -p 1883 \
-  -u username -P password -t 'deepstream/health'
+export MQTT_BROKER_HOST=mqtt-proxy.ad.dicodrink.com
+export MQTT_BROKER_PORT=1883
+export MQTT_BROKER_USER=r_vmays
+export MQTT_BROKER_PASS=csYr9xH&WTfAvMj2
 ```
 
-### Dashboard Integration
-The MQTT messages are JSON-formatted and ready for integration with:
-- Grafana dashboards
-- Node-RED flows
-- Custom web dashboards
-- Industrial IoT platforms
+### Camera Sources
+File: `configs/environments/config_sources_production.txt`
 
-## 🛡️ Production Deployment
+**RTSP Camera Configuration:**
+```ini
+[source0]
+enable=1
+type=4
+uri=rtsp://admin:%23DDuDU2025%21@10.20.100.102:554/cam/realmonitor?channel=1&subtype=0
+num-sources=1
 
-### Security Considerations
-- Use secure MQTT credentials
-- Enable MQTT TLS/SSL for production
-- Implement proper firewall rules
-- Regular security updates
+[source1]
+enable=1
+type=4
+uri=rtsp://admin:%23DDuDU2025%21@10.20.100.103:554/cam/realmonitor?channel=1&subtype=0
+num-sources=1
+```
+
+**Add More Cameras:**
+- Add `[source2]`, `[source3]` sections
+- Update `[tiled-display]` rows/columns
+- Update `[streammux]` batch-size
+
+## MQTT Data Structure
+
+### Count Messages (Published every 1 second per camera)
+**Topics:** `camera1/tracking`, `camera2/tracking`, etc.
+
+```json
+{
+  "timestamp": "2025-07-30T12:31:45.123456",
+  "source_id": 0,
+  "camera_name": "Camera 1 (102)",
+  "camera_ip": "10.20.100.102",
+  "location": "Production Area 1",
+  "counting_method": "tracker_ids",
+  "unique_objects_tracked": 15,
+  "session_new_objects": 3,
+  "total_objects_detected": 158,
+  "can_count": 158,
+  "tracked_object_ids": [1, 5, 12, 18, 22],
+  "message_type": "tracking_count_update"
+}
+```
+
+### System Health (Published every 5 seconds)
+**Topic:** `deepstream/health`
+
+```json
+{
+  "timestamp": "2025-07-30T12:31:45.123456",
+  "system_status": "healthy",
+  "deepstream_running": true,
+  "cpu_usage": "45.2%",
+  "memory_usage": "68.1%",
+  "disk_usage": "34.5%",
+  "gpu_info": "NVIDIA Jetson AGX Orin",
+  "total_unique_objects": 45,
+  "total_session_objects": 12,
+  "total_persistent_count": 1247,
+  "active_streams": 2,
+  "uptime": "2 days, 14:23:15"
+}
+```
+
+### Analytics Summary (Published every 10 seconds)
+**Topic:** `deepstream/analytics`
+
+```json
+{
+  "timestamp": "2025-07-30T12:31:45.123456",
+  "counting_method": "nvidia_analytics_tracker_ids",
+  "total_unique_objects_tracked": 45,
+  "total_session_new_objects": 12,
+  "total_persistent_count": 1247,
+  "active_streams": 2,
+  "per_stream_breakdown": {
+    "0": {"unique": 23, "session": 7, "total": 623},
+    "1": {"unique": 22, "session": 5, "total": 624}
+  }
+}
+```
+
+## Data Persistence
+
+**Location:** `data/persistence/`
+
+### tracking_counts.json
+```json
+{
+  "stream_0": {"session_count": 7, "total_count": 623, "last_update": "2025-07-30T12:31:45"},
+  "stream_1": {"session_count": 5, "total_count": 624, "last_update": "2025-07-30T12:31:45"}
+}
+```
+
+### live_counts.json
+```json
+{
+  "timestamp": "2025-07-30T12:31:45.123456",
+  "session_counts": {"0": 7, "1": 5},
+  "stream_totals": {"0": 623, "1": 624}
+}
+```
+
+## Project Structure
+
+```
+📁 configs/
+  📁 components/              # Component configurations
+    📄 config_infer_primary_yolo11.txt    # YOLO inference config
+    📄 mqtt_broker_config.txt             # MQTT broker settings
+    📄 nvdsanalytics_config.txt           # Analytics configuration
+    📄 tracker_config.txt                 # Object tracker settings
+    📄 msg_config.txt                     # Message format config
+  📁 environments/            # Environment configurations  
+    📄 config_sources_production.txt      # Production camera config
+
+📁 data/
+  📁 persistence/             # Persistent count storage
+    📄 tracking_counts.json               # Per-stream counts
+    📄 live_counts.json                   # Live session data
+
+📁 scripts/                   # Essential scripts
+  📄 start_production.sh                 # Main launcher
+  📄 run_tracking_indefinitely.sh       # 24/7 infinite runner
+  📄 cleanup_deepstream.sh              # System cleanup
+  📄 test_mqtt_subscriber.py            # MQTT test tool
+
+📁 src/                      # Core application
+  📄 tracking_deepstream.py             # Main DeepStream app
+  📄 tracking_mqtt.py                   # MQTT publisher
+  📄 tracking_based_counter.py          # Counting logic
+
+📁 models/                   # YOLO models
+  📄 model_b1_gpu0_fp32.engine          # TensorRT engine
+  📄 yolo11s.onnx                       # ONNX model
+  📄 labels.txt                         # Class labels
+
+📁 nvdsinfer_custom_impl_Yolo/         # Custom inference library
+```
+
+## Operation Modes
+
+### 1. Interactive Mode
+```bash
+./scripts/start_production.sh
+```
+- Choose option 1: Basic GUI only
+- Choose option 2: Production with MQTT + persistence
+
+### 2. Infinite Runner (24/7)
+```bash
+./scripts/start_production.sh --mode infinite
+```
+- Automatic restart on failure
+- Continuous operation
+- Health monitoring and recovery
+- Maximum 20 restarts per hour protection
+
+## Troubleshooting
+
+### Common Issues
+
+**Import Errors:**
+```bash
+# Check imports
+python3 -c "from src.tracking_deepstream import *; print('✅ OK')"
+```
+
+**GPU Issues:**
+```bash
+# Clean up GPU resources
+./scripts/cleanup_deepstream.sh
+nvidia-smi
+```
+
+**MQTT Connection:**
+```bash
+# Test MQTT connectivity
+timeout 5 bash -c "</dev/tcp/mqtt-proxy.ad.dicodrink.com/1883"
+```
+
+**Camera Connectivity:**
+```bash
+# Test RTSP streams
+timeout 3 ping -c 1 10.20.100.102
+timeout 3 ping -c 1 10.20.100.103
+```
 
 ### Performance Optimization
-- Adjust batch size based on GPU memory
-- Configure appropriate detection thresholds
-- Monitor system resources
-- Use appropriate video resolution
 
-### Reliability Features
-- Automatic application restart on failure
-- Persistent count storage
-- MQTT reconnection handling
-- Health monitoring alerts
+**Expected Performance:**
+- **FPS**: 25+ per camera stream
+- **Latency**: <100ms end-to-end
+- **Accuracy**: >95% tracking consistency
 
-## 📚 Dependencies
+**Resource Usage:**
+- **CPU**: <70% sustained
+- **Memory**: <80% of available
+- **GPU**: DeepStream optimized
 
-- **NVIDIA DeepStream SDK 7.x**
-- **CUDA 12.x**
-- **Python 3.8+**
-- **paho-mqtt** - MQTT client library
-- **psutil** - System monitoring
-- **TensorRT** - GPU inference optimization
+### Monitoring Commands
 
-## 🤝 Contributing
+**Check Application Status:**
+```bash
+ps aux | grep tracking_deepstream
+ps aux | grep tracking_mqtt
+```
 
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
+**Monitor MQTT Messages:**
+```bash
+python3 scripts/test_mqtt_subscriber.py
+```
 
-## 📄 License
+**Check Data Persistence:**
+```bash
+cat data/persistence/tracking_counts.json
+cat data/persistence/live_counts.json
+```
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+**System Health:**
+```bash
+nvidia-smi
+htop
+df -h
+```
 
-## 🆘 Support
+## Technical Details
 
-For technical support and questions:
-- Create an issue in this repository
-- Check the configuration files for proper setup
-- Verify MQTT broker connectivity
-- Ensure DeepStream SDK is properly installed
+### Counting Method
+- **Technology**: NVIDIA Analytics Tracker IDs
+- **Accuracy**: Unique object tracking (no duplicates)
+- **Performance**: Hardware-accelerated GPU processing
+- **Persistence**: JSON storage with atomic writes
 
-## 🏷️ Version
+### DeepStream Pipeline
+1. **RTSP Source** → Video decode (NVDEC)
+2. **Stream Mux** → Batch processing  
+3. **Primary GIE** → YOLO11 inference (TensorRT)
+4. **Tracker** → NVIDIA Multi-Object Tracker
+5. **OSD** → On-screen display overlay
+6. **Sink** → Display output
 
-Current version: 1.0.0 - Production Ready
+### MQTT Architecture
+- **Publisher**: Separate thread for non-blocking operation
+- **QoS**: Level 0 (fire-and-forget for performance)
+- **Reconnection**: Automatic with exponential backoff
+- **Topics**: Structured hierarchy for different data types
+
+## Maintenance
+
+### Regular Tasks
+- Monitor disk space in `data/persistence/`
+- Check MQTT broker connectivity
+- Verify camera stream health
+- Review system performance metrics
+
+### Updates
+- YOLO models: Replace in `models/` directory
+- Configuration: Update relevant config files
+- Restart: Use infinite runner for automatic recovery
+
+### Backup
+```bash
+# Backup persistent data
+cp -r data/persistence/ backup/persistence-$(date +%Y%m%d)/
+
+# Backup configurations
+cp -r configs/ backup/configs-$(date +%Y%m%d)/
+```
+
+---
+
+**For technical support or issues, check the troubleshooting section above or review system logs.**
