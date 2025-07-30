@@ -40,10 +40,10 @@ nvbuf-memory-type=0
 [sink1]
 enable=0
 type=6
-msg-conv-config=configs/components/msg_config.txt
+msg-conv-config=/home/deepstream/DeepStream-Yolo/configs/components/msg_config.txt
 msg-conv-payload-type=0
 msg-conv-msg2p-new-api=1
-msg-broker-config=configs/components/mqtt_broker_config.txt
+msg-broker-config=/home/deepstream/DeepStream-Yolo/configs/components/mqtt_broker_config.txt
 msg-broker-proto-lib=/opt/nvidia/deepstream/deepstream-7.1/lib/libnvds_mqtt_proto.so
 msg-broker-conn-str=mqtt-proxy.ad.dicodrink.com;1883
 topic=camera/stream
@@ -90,6 +90,5 @@ ll-lib-file=/opt/nvidia/deepstream/deepstream/lib/libnvds_nvmultiobjecttracker.s
 ll-config-file=/home/deepstream/DeepStream-Yolo/configs/components/tracker_config.txt
 gpu-id=0
 
-[nvds-analytics]
-enable=1
-config-file=/home/deepstream/DeepStream-Yolo/configs/components/nvdsanalytics_config.txt
+# Analytics disabled for tracking-based object counting
+# Using NVIDIA Analytics tracker IDs instead of detection lines

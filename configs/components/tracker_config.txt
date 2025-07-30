@@ -1,5 +1,18 @@
-tracker-width: 640
-tracker-height: 384
-gpu-id: 0
-enable-past-frame: 1
-display-tracking-id: 1
+[Base-Tracker]
+tracker-width=960
+tracker-height=544
+tracker-surface-scaling=1.0
+min-box-size=20
+min-confidence=0.6
+
+[Target-Management]
+enable-past-frame=1
+max-targets-per-stream=150
+max-shadow-tracking-age=120
+probation-age=10
+
+[Visual-Appearance]
+color-grid-size=16
+feature-img-size=256
+feature-mem-type=0
+use-color-names=0

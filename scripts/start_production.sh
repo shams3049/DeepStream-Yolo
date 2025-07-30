@@ -5,7 +5,7 @@
 
 set -e  # Exit on any error
 
-echo "🏭 Starting Production DeepStream Object Counter"
+echo "🏭 Production DeepStream Object Counter"
 echo "==============================================="
 echo "$(date): Initializing production environment..."
 
@@ -13,7 +13,6 @@ echo "$(date): Initializing production environment..."
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MQTT_CONFIG="$PROJECT_DIR/configs/components/mqtt_broker_config.txt"
 PRODUCTION_CONFIG="$PROJECT_DIR/configs/environments/config_sources_production.txt"
-TEST_CONFIG="$PROJECT_DIR/configs/environments/config_test_simple.txt"
 
 # Set environment variables
 export CUDA_VER=12.2
@@ -29,6 +28,14 @@ export MQTT_BROKER_PASS="csYr9xH&WTfAvMj2"
 cd "$PROJECT_DIR"
 
 echo "📁 Project directory: $PROJECT_DIR"
+
+# Clean up any existing processes from previous runs
+echo "🧹 Cleaning up previous instances..."
+pkill -f "deepstream-app" 2>/dev/null || true
+pkill -f "tracking_deepstream.py" 2>/dev/null || true
+pkill -f "tracking_mqtt.py" 2>/dev/null || true
+pkill -f "production_deepstream.py" 2>/dev/null || true
+sleep 2
 
 # Verify prerequisites
 echo "🔍 Verifying system requirements..."
@@ -80,48 +87,43 @@ fi
 # Create data directory if needed
 mkdir -p data/persistence
 
+# Clean up any stuck shared memory or GPU resources
+echo "🔧 Ensuring GPU resources are available..."
+nvidia-smi --gpu-reset 2>/dev/null || true
+
 # Test camera connectivity and choose appropriate config
 echo "📷 Testing camera connectivity..."
-CONFIG_TO_USE="$PRODUCTION_CONFIG"
 
 if timeout 3 ping -c 1 10.20.100.102 >/dev/null 2>&1 && timeout 3 ping -c 1 10.20.100.103 >/dev/null 2>&1; then
     echo "✅ Both RTSP cameras (10.20.100.102, 10.20.100.103) are accessible"
-    CONFIG_TO_USE="$PRODUCTION_CONFIG"
     
-    # Ask user if they want to enable MQTT and analytics
+    # Ask user for mode selection
     echo ""
     echo "🔧 Configuration Options:"
-    echo "1) Basic mode (display only, no MQTT/analytics) - RECOMMENDED for testing"
-    echo "2) Full production mode (with MQTT and analytics)"
+    echo "1) Basic mode (display only, no MQTT)"
+    echo "2) Production mode (with MQTT and persistent counting)"
     echo ""
-    read -p "Choose mode (1/2) [default: 1]: " mode_choice
+    read -p "Choose mode (1/2) [default: 2]: " mode_choice
+    mode_choice=${mode_choice:-2}  # Default to production mode
     
     if [ "$mode_choice" = "2" ]; then
-        echo "🔄 Enabling MQTT and analytics features..."
-        # Enable MQTT sink
-        sed -i 's/^\[sink1\]/[sink1]/; /^\[sink1\]/,/^\[/ s/enable=0/enable=1/' "$CONFIG_TO_USE"
-        # Enable analytics
-        sed -i 's/^\[nvds-analytics\]/[nvds-analytics]/; /^\[nvds-analytics\]/,/^\[/ s/enable=0/enable=1/' "$CONFIG_TO_USE"
+        echo "🔄 Enabling production mode with MQTT and persistent counting..."
         
         # Test MQTT broker connectivity
         echo "📡 Testing MQTT broker connectivity..."
         echo "   Broker: $MQTT_BROKER_HOST:$MQTT_BROKER_PORT"
         
         timeout 5 bash -c "</dev/tcp/$MQTT_BROKER_HOST/$MQTT_BROKER_PORT" 2>/dev/null && \
-            echo "✅ External MQTT broker reachable at $MQTT_BROKER_HOST:$MQTT_BROKER_PORT" || \
-            echo "⚠️  External MQTT broker not reachable at $MQTT_BROKER_HOST:$MQTT_BROKER_PORT (will continue without MQTT)"
+            echo "✅ MQTT broker reachable" || \
+            echo "⚠️  MQTT broker not reachable (will continue without MQTT)"
     else
-        echo "📺 Running in basic display mode (MQTT and analytics disabled)"
-        # Ensure MQTT and analytics are disabled
-        sed -i 's/^\[sink1\]/[sink1]/; /^\[sink1\]/,/^\[/ s/enable=1/enable=0/' "$CONFIG_TO_USE"
-        sed -i 's/^\[nvds-analytics\]/[nvds-analytics]/; /^\[nvds-analytics\]/,/^\[/ s/enable=1/enable=0/' "$CONFIG_TO_USE"
+        echo "📺 Running in basic display mode"
     fi
 else
-    echo "⚠️  RTSP cameras not accessible - using test config with simple setup"
-    CONFIG_TO_USE="$TEST_CONFIG"
+    echo "⚠️  RTSP cameras not accessible - please check camera connections"
+    echo "🔧 Continuing with production config (cameras may auto-reconnect)"
+    mode_choice="2"  # Default to production mode even without cameras
 fi
-
-echo "📋 Using configuration: $(basename "$CONFIG_TO_USE")"
 
 # Display system information
 echo "💻 System Information:"
@@ -129,7 +131,7 @@ echo "   GPU: $(nvidia-smi --query-gpu=name --format=csv,noheader | head -1)"
 echo "   Memory: $(free -h | awk '/^Mem:/ {print $2}') total"
 echo "   Disk: $(df -h . | awk 'NR==2 {print $4}') available"
 
-# Start MQTT publisher in background (only if basic mode is selected)
+# Start MQTT publisher in background (only if full production mode is selected)
 MQTT_PID=""
 if [ "$mode_choice" = "2" ]; then
     echo "🚀 MQTT publisher will start alongside DeepStream GUI..."
@@ -137,14 +139,65 @@ else
     echo "📺 Skipping MQTT publisher (basic mode selected)"
 fi
 
-# Function to cleanup on exit
+# Function to show usage
+show_usage() {
+    echo "Usage: $0 [--mode MODE]"
+    echo "Modes:"
+    echo "  1 - Basic GUI Mode"
+    echo "  2 - Production Mode (GUI + MQTT + Persistent Counting)"  
+    echo "  infinite - Infinite Runner with Auto-restart (Production Mode)"
+    echo ""
+    echo "Examples:"
+    echo "  $0                    # Interactive mode selection"
+    echo "  $0 --mode infinite    # Run with infinite auto-restart"
+    exit 0
+}
+
+# Parse command line arguments  
+INFINITE_MODE=false
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --mode)
+            if [ "$2" = "infinite" ]; then
+                INFINITE_MODE=true
+            fi
+            shift 2
+            ;;
+        --help|-h)
+            show_usage
+            ;;
+        *)
+            echo "Unknown option $1"
+            show_usage
+            ;;
+    esac
+done
+
+# If infinite mode requested, hand off to infinite runner
+if [ "$INFINITE_MODE" = true ]; then
+    echo "♾️  Starting Infinite Runner Mode..."
+    exec "$PROJECT_DIR/scripts/run_tracking_indefinitely.sh"
+fi
 cleanup() {
     echo ""
     echo "🧹 Cleaning up processes..."
+    
+    # Kill all related processes
+    pkill -f "deepstream-app" 2>/dev/null || true
+    pkill -f "tracking_deepstream.py" 2>/dev/null || true
+    pkill -f "tracking_mqtt.py" 2>/dev/null || true
+    
     if [ -n "$MQTT_PID" ]; then
         kill $MQTT_PID 2>/dev/null || true
         echo "   Stopped MQTT publisher"
     fi
+    
+    # Clean up any GPU resources
+    nvidia-smi --gpu-reset 2>/dev/null || true
+    
+    # Give processes time to cleanup
+    sleep 2
+    
     echo "✅ Production session completed"
     exit 0
 }
@@ -154,71 +207,25 @@ trap cleanup SIGINT SIGTERM EXIT
 
 # Start DeepStream application
 echo "🎥 Starting DeepStream application..."
-echo "   Configuration: $(basename "$CONFIG_TO_USE")"
+echo "   Configuration: $(basename "$PRODUCTION_CONFIG")"
 echo "   Press Ctrl+C to stop"
 echo ""
 
-# Run DeepStream application with selected config
+# Run DeepStream application with tracking-based counter
 if [ "$mode_choice" = "2" ]; then
-    echo "🎯 Running DeepStream GUI with continuous MQTT publisher..."
-    echo "📊 Features: Live video display + 24/7 MQTT broadcasting, system health monitoring"
-    echo "🔄 Both DeepStream GUI and MQTT will run until manually stopped with Ctrl+C"
+    echo "🎯 Running DeepStream with Production Mode..."
+    echo "📊 Features: Live video + MQTT broadcasting + Persistent counting"
+    echo "� Using tracking-based object counter for maximum accuracy"
     echo ""
     
-    # Kill the background MQTT process if it's running
-    if [ -n "$MQTT_PID" ]; then
-        kill $MQTT_PID 2>/dev/null || true
-        echo "   Stopped background MQTT publisher"
-    fi
-    
-    # Start MQTT publisher in background
-    echo "🚀 Starting MQTT publisher in background..."
-    python3 src/production_mqtt.py &
-    MQTT_PID=$!
-    echo "   MQTT Publisher PID: $MQTT_PID"
-    
-    # Wait for MQTT initialization
-    echo "⏱️  Waiting for MQTT initialization..."
-    sleep 3
-    
-    # Start DeepStream GUI in foreground
-    echo "🎥 Starting DeepStream GUI application..."
-    if [ -f "src/analytics_stream_counter.py" ]; then
-        echo "🎯 Running DeepStream with Enhanced Analytics Stream Counter..."
-        echo "📊 Features: NVIDIA Analytics integration, per-stream counting, live overlay"
-        python3 src/analytics_stream_counter.py "$CONFIG_TO_USE"
-    elif [ -f "src/advanced_live_counter.py" ]; then
-        echo "📊 Running DeepStream with advanced live object counting..."
-        echo "📊 Features: Real-time counting, GUI overlay, persistent storage"
-        python3 src/advanced_live_counter.py "$CONFIG_TO_USE"
-    elif [ -f "src/simple_live_counter.py" ]; then
-        echo "📊 Running DeepStream with simple live counting..."
-        python3 src/simple_live_counter.py "$CONFIG_TO_USE"
-    elif [ -f "src/production_deepstream.py" ]; then
-        python3 src/production_deepstream.py "$CONFIG_TO_USE"
-    else
-        echo "📱 Running direct DeepStream application..."
-        deepstream-app -c "$CONFIG_TO_USE"
-    fi
+    python3 src/tracking_deepstream.py "$PRODUCTION_CONFIG"
 else
-    # For basic mode, use the analytics counter as before
-    if [ -f "src/analytics_stream_counter.py" ]; then
-        echo "🎯 Running DeepStream with Enhanced Analytics Stream Counter..."
-        echo "📊 Features: NVIDIA Analytics integration, per-stream counting, live overlay"
-        python3 src/analytics_stream_counter.py "$CONFIG_TO_USE"
-    elif [ -f "src/advanced_live_counter.py" ]; then
-        echo "📊 Running DeepStream with advanced live object counting..."
-        echo "📊 Features: Real-time counting, GUI overlay, persistent storage"
-        python3 src/advanced_live_counter.py "$CONFIG_TO_USE"
-    elif [ -f "src/simple_live_counter.py" ]; then
-        echo "📊 Running DeepStream with simple live counting..."
-        python3 src/simple_live_counter.py "$CONFIG_TO_USE"
-    elif [ -f "src/production_deepstream.py" ]; then
-        python3 src/production_deepstream.py "$CONFIG_TO_USE"
-    else
-        echo "📱 Running direct DeepStream application..."
-        deepstream-app -c "$CONFIG_TO_USE"
-    fi
+    echo "🎯 Running DeepStream in Basic Mode..."
+    echo "� Features: Live video display only"
+    echo "� Using tracking-based object counter"
+    echo ""
+    
+    python3 src/tracking_deepstream.py "$PRODUCTION_CONFIG"
 fi
 
 # This point should not be reached unless DeepStream exits normally
